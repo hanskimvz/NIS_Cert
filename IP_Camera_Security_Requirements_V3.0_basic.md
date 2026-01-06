@@ -381,6 +381,97 @@
 
 > 제공하지 않아야 된다는 의미이고, 메시지로 "로그인에 실패하였습니다."하는 메시지만 나오면 됨
 
+> 1. LOGIN 인증 절차   
+> 1 단계: Login Challenge (도전 요청), 
+> 나는 admin으로 login 하고 싶다. 
+> 실제 비밀번호는 안보냄
+> ```
+> api: https://192.168.1.108/RPC2_Login, POST
+> payload: {
+>   "method": "global.login",
+>    "params": {
+>        "userName": "admin",
+>        "password": "",
+>        "clientType": "Web5.0"
+>    },
+>    "id": 4
+> }
+> response: {
+>    "error": {
+>        "code": 268632079,
+>        "message": "Component error: login challenge!"
+>    },
+>    "id": 4,
+>    "params": {
+>        "authorityType": [
+>            "Default"
+>        ],
+>        "authorization": "839f13ba728facbb140cc2661b3bc411c732cc01",
+>        "encryption": "Default",
+>        "opaque": "dedd77794be40cf3f62ea082603def22",
+>        "qop": [
+>            "auth"
+>        ],
+>        "random": "538113986",
+>        "realm": "Login to dd1176c88fde59a5d01a6be0c45b9630"
+>    },
+>    "result": false,
+>    "session": "52939a29eca737f081deda87da696c9f"
+> }  
+> ```
+> 응답:
+> |필드| 의미|
+> |:---:|:---|
+> | `realm`         | 인증 영역 식별자 (Digest 표준)        |
+> | `random`        | **nonce** (일회성 난수)              |
+> | `opaque`        | 서버 상태 보호용 토큰                 |
+> | `qop`           | quality of protection (`auth`)     |
+> | `authorization` | 서버 내부 검증용                     |
+> | `session`       | 인증 전 임시 세션                    |
+
+> 2 단계:
+> ```
+> api: https://192.168.1.108/RPC2_Login, POST
+> payload: {
+>    "method": "global.login",
+>    "params": {
+>        "userName": "admin",
+>        "password": "E79DA7D56990E0388BAA5E3889A39361",
+>        "clientType": "Web5.0",
+>        "realm": "Login to dd1176c88fde59a5d01a6be0c45b9630",
+>        "random": "538113986",
+>        "passwordType": "Default",
+>        "authorityType": "Default"
+>    },
+>    "id": 5,
+>    "session": "52939a29eca737f081deda87da696c9f"
+> }
+> ```
+> password 필드의 정체
+> ```
+> HA1 = MD5(username : realm : real_password)
+> HA2 = MD5(method : uri)
+> response = MD5(HA1 : nonce : HA2)
+> ```
+
+
+```
+{
+    "id": 5,
+    "params": {
+        "isPwdOverdue": false,
+        "keepAliveInterval": 60
+    },
+    "result": true,
+    "session": "0894fe47140a204e65b892b3b4da86ad"
+}
+```
+> 여기서 session은 browser의 cookie에 저장된다. 
+> 이 인증 흐름은 **표준 HTTP Digest 인증을 JSON-RPC 형태로 감싼 “Challenge–Response 기반 사용자 인증”**입니다.
+> 국정원/시험기관 관점에서도 매우 정상적이고 좋은 구조예요.  
+> 요약: 카메라는 평문 비밀번호를 절대 받지 않고,
+>   - 1단계에서 nonce(random)를 내려주고,  
+>   - 2단계에서 Digest 해시로 검증하는 구조입니다.
 
 ## 2.3 보안관리
 인가된 관리자만이 제품의 보안기능 및 중요데이터에 대한 관리를 수행하도록 허용함으로써 제품의 보안관리를 위한 요구사항을 만족하는지 확인한다.
